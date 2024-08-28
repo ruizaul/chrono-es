@@ -7,10 +7,10 @@ import { createParsingComponentsAtWeekday } from "../../../common/calculation/we
 
 const PATTERN = new RegExp(
     "(?:(?:\\,|\\(|\\（)\\s*)?" +
-        "(?:(este|esta|pasado|pr[oó]ximo)\\s*)?" +
+        "(?:(este|esta|pasado|pr[oó]ximo|siguiente|anterior)\\s*)?" +  // Soporte para más modificadores
         `(${matchAnyPattern(WEEKDAY_DICTIONARY)})` +
         "(?:\\s*(?:\\,|\\)|\\）))?" +
-        "(?:\\s*(este|esta|pasado|pr[óo]ximo)\\s*semana)?" +
+        "(?:\\s*(este|esta|pasado|pr[óo]ximo|siguiente|anterior)\\s*semana)?" +  // Soporte para expresiones como "esta semana"
         "(?=\\W|\\d|$)",
     "i"
 );
@@ -24,25 +24,24 @@ export default class ESWeekdayParser extends AbstractParserWithWordBoundaryCheck
         return PATTERN;
     }
 
-    innerExtract(context: ParsingContext, match: RegExpMatchArray): ParsingComponents {
+    innerExtract(context: ParsingContext, match: RegExpMatchArray): ParsingComponents | null {
         const dayOfWeek = match[WEEKDAY_GROUP].toLowerCase();
         const weekday = WEEKDAY_DICTIONARY[dayOfWeek];
         if (weekday === undefined) {
-            return null;
+            return null; // Si el día de la semana no es reconocido, devolver null
         }
 
         const prefix = match[PREFIX_GROUP];
         const postfix = match[POSTFIX_GROUP];
-        let norm = prefix || postfix || "";
-        norm = norm.toLowerCase();
+        let norm = (prefix || postfix || "").toLowerCase();
 
-        let modifier = null;
-        if (norm == "pasado") {
-            modifier = "this";
-        } else if (norm == "próximo" || norm == "proximo") {
-            modifier = "next";
-        } else if (norm == "este") {
-            modifier = "this";
+        let modifier: string | null = null;
+        if (norm === "pasado" || norm === "anterior") {
+            modifier = "last"; // Ajustamos para interpretar correctamente "pasado" y "anterior"
+        } else if (norm === "próximo" || norm === "proximo" || norm === "siguiente") {
+            modifier = "next"; // Ajustamos para interpretar correctamente "próximo" y "siguiente"
+        } else if (norm === "este" || norm === "esta") {
+            modifier = "this"; // Interpretamos "este" o "esta" como "esta semana"
         }
 
         return createParsingComponentsAtWeekday(context.reference, weekday, modifier);
